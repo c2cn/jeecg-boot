@@ -18,12 +18,10 @@ const frozenBatch = (params)=>putAction("/sys/user/frozenBatch",params);
 const checkOnlyUser = (params)=>getAction("/sys/user/checkOnlyUser",params);
 //改变密码
 const changePassword = (params)=>putAction("/sys/user/changePassword",params);
-
 //权限管理
 const addPermission= (params)=>postAction("/sys/permission/add",params);
 const editPermission= (params)=>putAction("/sys/permission/edit",params);
 const getPermissionList = (params)=>getAction("/sys/permission/list",params);
-/*update_begin author:wuxianquan date:20190908 for:添加查询一级菜单和子菜单查询api */
 const getSystemMenuList = (params)=>getAction("/sys/permission/getSystemMenuList",params);
 const getSystemSubmenu = (params)=>getAction("/sys/permission/getSystemSubmenu",params);
 const getSystemSubmenuBatch = (params) => getAction('/sys/permission/getSystemSubmenuBatch', params)
@@ -33,7 +31,7 @@ const queryTreeListForRole = (params)=>getAction("/sys/role/queryTreeList",param
 const queryListAsync = (params)=>getAction("/sys/permission/queryListAsync",params);
 const queryRolePermission = (params)=>getAction("/sys/permission/queryRolePermission",params);
 const saveRolePermission = (params)=>postAction("/sys/permission/saveRolePermission",params);
-const queryPermissionsByUser = (params)=>getAction("/sys/permission/getUserPermissionByToken",params);
+const queryPermissionsByUser = ()=>getAction("/sys/permission/getUserPermissionByToken");
 const loadAllRoleIds = (params)=>getAction("/sys/permission/loadAllRoleIds",params);
 const getPermissionRuleList = (params)=>getAction("/sys/permission/getPermRuleListByPermId",params);
 const queryPermissionRule = (params)=>getAction("/sys/permission/queryPermissionRule",params);
@@ -54,7 +52,6 @@ const saveDeptRolePermission = (params)=>postAction("/sys/sysDepartPermission/sa
 const queryMyDepartTreeList = (params)=>getAction("/sys/sysDepart/queryMyDeptTreeList",params);
 
 //日志管理
-//const getLogList = (params)=>getAction("/sys/log/list",params);
 const deleteLog = (params)=>deleteAction("/sys/log/delete",params);
 const deleteLogList = (params)=>deleteAction("/sys/log/deleteBatch",params);
 
@@ -82,10 +79,8 @@ const doReovkeData = (params)=>getAction("/sys/annountCement/doReovkeData",param
 //获取系统访问量
 const getLoginfo = (params)=>getAction("/sys/loginfo",params);
 const getVisitInfo = (params)=>getAction("/sys/visitInfo",params);
-
 // 根据部门主键查询用户信息
 const queryUserByDepId = (params)=>getAction("/sys/user/queryUserByDepId",params);
-
 // 重复校验
 const duplicateCheck = (params)=>getAction("/sys/duplicate/check",params);
 // 加载分类字典

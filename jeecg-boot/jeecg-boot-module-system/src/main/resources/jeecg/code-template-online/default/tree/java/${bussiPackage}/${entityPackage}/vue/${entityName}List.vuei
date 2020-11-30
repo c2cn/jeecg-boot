@@ -161,6 +161,8 @@
       <a-upload name="file" :showUploadList="false" :multiple="false" :headers="tokenHeader" :action="importExcelUrl" @change="handleImportExcel">
         <a-button type="primary" icon="import">导入</a-button>
       </a-upload>
+      <!-- 高级查询区域 -->
+      <j-super-query :fieldList="superFieldList" ref="superQueryModal" @handleSuperQuery="handleSuperQuery"></j-super-query>
       <a-dropdown v-if="selectedRowKeys.length > 0">
         <a-menu slot="overlay">
           <a-menu-item key="1" @click="batchDel"><a-icon type="delete"/>删除</a-menu-item>
@@ -217,7 +219,7 @@
                 <a @click="handleAddChild(record)">添加下级</a>
               </a-menu-item>
               <a-menu-item>
-                <a-popconfirm title="确定删除吗?" @confirm="() => handleDeleteNode(record)">
+                <a-popconfirm title="确定删除吗?" @confirm="() => handleDeleteNode(record.id)">
                   <a>删除</a>
                 </a-popconfirm>
               </a-menu-item>
@@ -275,6 +277,7 @@
   <#if query_switch>
   import JSwitch from '@/components/jeecg/JSwitch'
   </#if>
+  import JSuperQuery from '@/components/jeecg/JSuperQuery.vue'
 
   export default {
     name: "${entityName}List",
@@ -310,7 +313,8 @@
       <#if query_switch>
       JSwitch,
       </#if>
-      ${entityName}Modal
+      ${entityName}Modal,
+      JSuperQuery
     },
     data () {
       return {
@@ -332,6 +336,9 @@
           {
             title:'${po.filedComment}',
             align:"left",
+            <#if po.sort=='Y'>
+            sorter: true,
+            </#if>
             <#if po.classType=='date'>
             dataIndex: '${po.fieldName}',
             customRender:function (text) {
@@ -345,6 +352,13 @@
             scopedSlots: {customRender: 'imgSlot'}
             <#elseif po.classType=='list' || po.classType=='list_multi' || po.classType=='sel_search' || po.classType=='radio' || po.classType=='checkbox' || po.classType=='sel_depart' || po.classType=='sel_user'>
             dataIndex: '${po.fieldName}_dictText'
+            <#elseif po.classType=='switch'>
+            dataIndex: '${po.fieldName}',
+            <#if po.dictField?default("")?trim?length gt 1>
+            customRender: (text) => (!text ? "" : (text == ${po.dictField}[0] ? "是" : "否"))
+            <#else>
+            customRender: (text) => (!text ? "" : (text == "Y" ? "是" : "否"))
+            </#if>
 			<#else>
             dataIndex: '${po.fieldName}'
 			</#if>
@@ -356,6 +370,7 @@
             title: '操作',
             dataIndex: 'action',
             align:"center",
+            width:147,
             scopedSlots: { customRender: 'action' },
           }
         ],
@@ -372,8 +387,12 @@
         hasChildrenField:"${hasChildrenField}",
         pidField:"${pidFieldName}",
         dictOptions: {},
-        loadParent: false
+        loadParent: false,
+        superFieldList:[],
       }
+    },
+    created() {
+      this.getSuperFieldList();
     },
     computed: {
       importExcelUrl(){
@@ -397,6 +416,7 @@
         }
         this.loading = true
         let params = this.getQueryParams()
+        params.hasQuery = 'true'
         getAction(this.url.list,params).then(res=>{
           if(res.success){
             let result = res.result
@@ -424,7 +444,7 @@
               let records = res.result.records
               const listMap = new Map();
               for (let item of records) {
-                let pid = item.pid;
+                let pid = item[this.pidField];
                 if (this.expandedRowKeys.join(',').includes(pid)) {
                  let mapList = listMap.get(pid);
                   if (mapList == null) {
@@ -436,12 +456,14 @@
               }
               let childrenMap = listMap;
               let fn = (list) => {
-                list.forEach(data => {
-                  if (this.expandedRowKeys.includes(data.id)) {
-                    data.children = this.getDataByResult(childrenMap.get(data.id))
-                    fn(data.children)
-                  }
-                })
+                if(list) {
+                  list.forEach(data => {
+                    if (this.expandedRowKeys.includes(data.id)) {
+                      data.children = this.getDataByResult(childrenMap.get(data.id))
+                      fn(data.children)
+                    }
+                  })
+                }
               }
               fn(dataList)
             }
@@ -462,6 +484,11 @@
           param = Object.assign(sqp, this.isorter ,this.filters);
         }else{
           param = Object.assign(sqp, this.queryParam, this.isorter ,this.filters);
+        }
+        if(JSON.stringify(this.queryParam) === "{}" || arg){
+          param.hasQuery = 'false'
+        }else{
+          param.hasQuery = 'true'
         }
         param.field = this.getQueryField();
         param.pageNo = this.ipagination.current;
@@ -491,8 +518,10 @@
         if (expanded) {
           this.expandedRowKeys.push(record.id)
           if (record.children.length>0 && record.children[0].isLoading === true) {
-            let params = this.getQueryParams();//查询条件
+            let params = this.getQueryParams(1);//查询条件
             params[this.pidField] = record.id
+            params.hasQuery = 'false'
+            params.superQueryParams=""
             getAction(this.url.childList,params).then((res)=>{
               if(res.success){
                 if(res.result.records){
@@ -520,21 +549,48 @@
         obj[this.pidField] = record['id']
         this.$refs.modalForm.add(obj);
       },
-      handleDeleteNode(record) {
+      handleDeleteNode(id) {
         if(!this.url.delete){
           this.$message.error("请设置url.delete属性!")
           return
         }
         var that = this;
-        deleteAction(that.url.delete, {id: record.id}).then((res) => {
+        deleteAction(that.url.delete, {id: id}).then((res) => {
           if (res.success) {
              that.loadData(1)
           } else {
             that.$message.warning(res.message);
           }
         });
+      },
+      batchDel(){
+        if(this.selectedRowKeys.length<=0){
+          this.$message.warning('请选择一条记录！');
+          return false;
+        }else{
+          let ids = "";
+          let that = this;
+          that.selectedRowKeys.forEach(function(val) {
+            ids+=val+",";
+          });
+          that.$confirm({
+            title:"确认删除",
+            content:"是否删除选中数据?",
+            onOk: function(){
+              that.handleDeleteNode(ids)
+              that.onClearSelected();
+            }
+          });
+        }
+      },
+      getSuperFieldList(){
+        <#include "/common/utils.ftl">
+        let fieldList=[];
+         <#list columns as po>
+        fieldList.push(${superQueryFieldList(po)})
+         </#list>
+        this.superFieldList = fieldList
       }
-
     }
   }
 </script>
