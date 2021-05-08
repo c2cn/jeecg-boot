@@ -149,6 +149,8 @@ export default {
     packageEvent(name, event = {}) {
       event.row = this.row
       event.column = this.column
+      //online增强参数兼容
+      event.column['key'] = this.column['property']
       event.cellTarget = this
       if (!event.type) {
         event.type = name
@@ -296,7 +298,11 @@ export function dispatchEvent({cell, $event}, className, handler) {
         handler(element[0])
       } else {
         // 模拟触发点击事件
-        element[0].dispatchEvent($event)
+        console.log($event)
+        if($event){
+          console.log("$event===>",$event)
+          element[0].dispatchEvent($event)
+        }
       }
     }
   }, 10)
